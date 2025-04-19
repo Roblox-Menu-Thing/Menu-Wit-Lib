@@ -57,12 +57,16 @@ local function tween(object, properties, duration, easingStyle, easingDirection)
 end
 
 local function draggable(frame, dragObject)
-    local dragging
+    local dragging = false
     local dragInput
     local dragStart
     local startPos
     
+    local connection
+    
     local function update(input)
+        if not dragging then return end
+        
         local delta = input.Position - dragStart
         dragObject.Position = UDim2.new(
             startPos.X.Scale, 
@@ -78,7 +82,9 @@ local function draggable(frame, dragObject)
             dragStart = input.Position
             startPos = dragObject.Position
             
-            input.Changed:Connect(function()
+            if connection then connection:Disconnect() end
+            
+            connection = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
                 end
@@ -222,12 +228,22 @@ function Library.new(title, theme)
         Name = "Title",
         BackgroundTransparency = 1,
         Position = UDim2.new(0, 10, 0, 0),
-        Size = UDim2.new(1, -20, 1, 0),
+        Size = UDim2.new(1, -80, 1, 0),  -- Reduced width to prevent overlap with buttons
         Font = Enum.Font.GothamSemibold,
         Text = title or "Library UI",
         TextColor3 = COLORS.Text,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = self.TitleBar
+    })
+    
+    -- Drag handle for entire title bar
+    self.DragHandle = createInstance("TextButton", {
+        Name = "DragHandle",
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 0),
+        Size = UDim2.new(1, -70, 1, 0),  -- Space for close/minimize buttons
+        Text = "",
         Parent = self.TitleBar
     })
     
@@ -363,7 +379,7 @@ function Library.new(title, theme)
     })
     
     -- Make main frame draggable
-    draggable(self.TitleBar, self.Main)
+    draggable(self.DragHandle, self.Main)
     
     self.Tabs = {}
     self.SelectedTab = nil
