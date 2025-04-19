@@ -9,6 +9,11 @@
     Version: 1.0.0
 --]]
 
+-- Make library available globally through getgenv()
+if getgenv then
+    getgenv().MenuLib = {} -- Will be populated at the end of the script
+end
+
 local Library = {}
 Library.__index = Library
 
@@ -51,7 +56,7 @@ local function tween(object, properties, duration, easingStyle, easingDirection)
     return tween
 end
 
-local function draggable(frame)
+local function draggable(frame, dragObject)
     local dragging
     local dragInput
     local dragStart
@@ -59,7 +64,7 @@ local function draggable(frame)
     
     local function update(input)
         local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
+        dragObject.Position = UDim2.new(
             startPos.X.Scale, 
             startPos.X.Offset + delta.X, 
             startPos.Y.Scale, 
@@ -71,7 +76,7 @@ local function draggable(frame)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
-            startPos = frame.Position
+            startPos = dragObject.Position
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
@@ -358,7 +363,7 @@ function Library.new(title, theme)
     })
     
     -- Make main frame draggable
-    draggable(self.TitleBar)
+    draggable(self.TitleBar, self.Main)
     
     self.Tabs = {}
     self.SelectedTab = nil
@@ -1527,6 +1532,123 @@ function Library:Notify(title, message, duration)
 end
 
 -- Export library
-getgenv().MenuLib = Library
+
+-- Set the global library for future reference
+if getgenv then
+    for k, v in pairs(Library) do
+        getgenv().MenuLib[k] = v
+    end
+end
+
+-- Add UI notification function
+function Library:Notify(title, message, duration)
+    duration = duration or 3
+    
+    -- Create notification container if it doesn't exist
+    if not self.NotificationContainer then
+        self.NotificationContainer = createInstance("Frame", {
+            Name = "NotificationContainer",
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, -20, 0, 20),
+            Size = UDim2.new(0, 250, 1, -40),
+            AnchorPoint = Vector2.new(1, 0),
+            Parent = self.ScreenGui
+        })
+        
+        createInstance("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 10),
+            Parent = self.NotificationContainer
+        })
+    end
+    
+    -- Create notification
+    local notification = createInstance("Frame", {
+        Name = "Notification",
+        BackgroundColor3 = COLORS.Secondary,
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(1, 0, 0, 80),
+        Parent = self.NotificationContainer
+    })
+    
+    createInstance("UICorner", {
+        CornerRadius = UDim.new(0, 6),
+        Parent = notification
+    })
+    
+    local notifTitle = createInstance("TextLabel", {
+        Name = "Title",
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 15, 0, 10),
+        Size = UDim2.new(1, -30, 0, 20),
+        Font = Enum.Font.GothamSemibold,
+        Text = title,
+        TextColor3 = COLORS.Accent,
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = notification
+    })
+    
+    local notifMessage = createInstance("TextLabel", {
+        Name = "Message",
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 15, 0, 35),
+        Size = UDim2.new(1, -30, 0, 35),
+        Font = Enum.Font.Gotham,
+        Text = message,
+        TextColor3 = COLORS.Text,
+        TextSize = 14,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = notification
+    })
+    
+    -- Create close button for notification
+    local closeButton = createInstance("TextButton", {
+        Name = "CloseButton",
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -25, 0, 10),
+        Size = UDim2.new(0, 20, 0, 20),
+        Font = Enum.Font.GothamBold,
+        Text = "×",
+        TextColor3 = COLORS.TextDark,
+        TextSize = 18,
+        Parent = notification
+    })
+    
+    closeButton.MouseEnter:Connect(function()
+        tween(closeButton, {TextColor3 = COLORS.Text}, 0.2)
+    end)
+    
+    closeButton.MouseLeave:Connect(function()
+        tween(closeButton, {TextColor3 = COLORS.TextDark}, 0.2)
+    end)
+    
+    closeButton.MouseButton1Click:Connect(function()
+        tween(notification, {Position = UDim2.new(1, 250, 0, 0)}, 0.3)
+        task.delay(0.3, function()
+            notification:Destroy()
+        end)
+    end)
+    
+    -- Animate notification
+    notification.Position = UDim2.new(1, 250, 0, 0)
+    tween(notification, {Position = UDim2.new(0, 0, 0, 0)}, 0.3)
+    
+    -- Auto-close notification after duration
+    task.delay(duration, function()
+        if notification and notification.Parent then
+            tween(notification, {Position = UDim2.new(1, 250, 0, 0)}, 0.3)
+            task.delay(0.3, function()
+                if notification and notification.Parent then
+                    notification:Destroy()
+                end
+            end)
+        end
+    end)
+end
 
 return Library
